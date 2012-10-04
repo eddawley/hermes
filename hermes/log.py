@@ -5,7 +5,9 @@ hermes.log
 This module contains logging configuration and setup for Hermes.
 """
 
-from logging.config import dictConfig
+import logging
+import dictconfig
+#from logging.config import dictConfig
 
 DEFAULT_LOGGING = {
     'version': 1,
@@ -29,4 +31,4 @@ def configure_logging(config_dict=DEFAULT_LOGGING):
     :param config_dict: (optional) Standard Python logging configuration dictionary
     """
 
-    dictConfig(config_dict)
+    dictconfig.dictConfig(config_dict)
