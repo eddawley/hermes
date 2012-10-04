@@ -36,7 +36,7 @@ def run_server(chatrooms, use_default_logging=True):
     bots = []
     for name, params in chatrooms.items():
 
-        bot_class = params.get('CLASS', 'hermes.Chatroom')
+        bot_class = params.get('CLASS', 'hermes.chatroom.Chatroom')
         if type(bot_class) == type:
             pass
         else:
