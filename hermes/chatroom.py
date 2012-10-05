@@ -9,6 +9,7 @@ import sys
 import re
 import xmpp
 import logging
+import random
 
 logger = logging.getLogger(__name__)
 
@@ -20,14 +21,24 @@ class Chatroom(object):
     #instead of the standard message-handling pipeline.
     command_patterns = ()
 
+    base_command_patterns = ((r'^/list', 'list'),
+                        (r'^(\w+)--', 'decrement'),
+                        (r'^(\w+)\+\+', 'increment'),
+                        (r'^/roll\s*(\d*)', 'roll'),
+                       )
+
     def __init__(self, name, params):
         self.command_patterns = []
+        for pattern in type(self).base_command_patterns:
+            self.command_patterns.append((re.compile(pattern[0]), pattern[1]))
+
         for pattern in type(self).command_patterns:
             self.command_patterns.append((re.compile(pattern[0]), pattern[1]))
 
         self.name = name
         self.params = params
         self.jid = xmpp.protocol.JID(self.params['JID'])
+        self.counts = {}
 
     def connect(self):
         """Connect to the chatroom's server, sets up handlers, invites members as needed."""
@@ -224,3 +235,34 @@ class Chatroom(object):
             return self.broadcast(broadcast_body, exclude=(sender,))
         except:
             logger.exception('Error handling message [%s] from [%s]' % (body, sender['JID']))
+
+    def decrement(self, sender, body, match):
+        """Performs an decrement on the given text"""
+        what = match.group(1)
+        self.counts[what] = self.counts.get(what, 0) - 1
+        body = '[%s] %s [ouch! now at %s]' % (sender['NICK'], match.group(0), str(self.counts[what])) 
+        self.broadcast(body)
+
+    def increment(self, sender, body, match):
+        """Performs an increment on the given text"""
+        what = match.group(1)
+        self.counts[what] = self.counts.get(what, 0) + 1
+        body = '[%s] %s [woot! now at %s]' % (sender['NICK'], match.group(0), str(self.counts[what])) 
+        self.broadcast(body)
+
+    def list(self, sender, body, match):
+        """Lists the members of this chatroom"""
+        body = 'Chat Members:\n\n'
+        for member in self.params['MEMBERS']:
+            body += member['NICK'] + '\n'
+
+        self.broadcast(body)
+
+    def roll(self, sender, body, match):
+        """Roll the dice!  Outputs a random int from 0 to max"""
+        max = match.group(1)
+        if not max:
+            max = 100
+        body = '[%s] rolled %d ' % (sender['NICK'], random.randrange(0, int(max)))
+        self.broadcast(body)
+
