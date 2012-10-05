@@ -202,9 +202,13 @@ class Chatroom(object):
         nick = event.getFrom().getResource()
         from_jid = event.getFrom().getStripped()
         body = event.getBody()
-
+        html_body = event.getTag('html')
+       
         if msg_type == 'chat' and body is None:
             return
+
+        if html_body:
+            html_body = unicode(html_body.getTag('body').getPayload().pop())
 
         logger.debug('msg_type[%s] from[%s] nick[%s] body[%s]' % (msg_type, from_jid, nick, body,))
 
@@ -233,7 +237,7 @@ class Chatroom(object):
                     return command_handler(sender, body, args)
 
             broadcast_body = '[%s] %s' % (sender['NICK'], body,)
-            return self.broadcast(broadcast_body, exclude=(sender,))
+            return self.broadcast(broadcast_body, exclude=(sender,), html_body=html_body)
         except:
             logger.exception('Error handling message [%s] from [%s]' % (body, sender['JID']))
 
