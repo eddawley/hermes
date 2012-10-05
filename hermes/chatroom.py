@@ -1,3 +1,4 @@
+# This Python file uses the following encoding: utf-8
 """
 hermes.chatroom
 ~~~~~~~~~~~~~~~
@@ -10,6 +11,8 @@ import re
 import xmpp
 import logging
 import random
+
+from collections import deque, namedtuple
 
 logger = logging.getLogger(__name__)
 
@@ -25,8 +28,11 @@ class Chatroom(object):
                         (r'^(\w+)--', 'decrement'),
                         (r'^(\w+)\+\+', 'increment'),
                         (r'^/roll\s*(\d*)', 'roll'),
+                        (r'^/links\s*(\d*)', 'links'),
                         (r'^/help', 'help'),
                        )
+
+    HistoryMessage = namedtuple('HistoryMessage', ['sender', 'body', 'html_body'])
 
     def __init__(self, name, params):
         self.command_patterns = []
@@ -40,6 +46,7 @@ class Chatroom(object):
         self.params = params
         self.jid = xmpp.protocol.JID(self.params['JID'])
         self.counts = {}
+        self.history = deque(maxlen=200)
 
     def connect(self):
         """Connect to the chatroom's server, sets up handlers, invites members as needed."""
@@ -236,6 +243,8 @@ class Chatroom(object):
                 if command_handler:
                     return command_handler(sender, body, args)
 
+            historyMessage = self.HistoryMessage(sender=sender, body=body, html_body=html_body)
+            self.history.appendleft(historyMessage)
             broadcast_body = '[%s] %s' % (sender['NICK'], body,)
             return self.broadcast(broadcast_body, exclude=(sender,), html_body=html_body)
         except:
@@ -271,6 +280,38 @@ class Chatroom(object):
         body = 'Chat Members:\n\n'
         for member in self.params['MEMBERS']:
             body += '%s\n' % (member['NICK'])
+
+        self.send_message(body, sender)
+
+    def links(self, sender, body, match):
+        """Lists last X urls linked to in chat"""
+        max = match.group(1)
+        if not max:
+            max = 10
+
+        max = int(max)
+
+        # Please see http://daringfireball.net/2010/07/improved_regex_for_matching_urls
+        regex = re.compile(r'(?i)\b((?:https?://|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:\'".,<>?«»“”‘’]))')
+
+        count = 0
+        body = 'Last %d Links:\n\n' % (max)
+        for message in self.history:
+            if count >= max:
+                break
+
+            matches = []
+            if message.body:
+                matches = regex.findall(message.body)
+
+            if not matches and message.html_body:
+                matches = regex.findall(message.html_body)
+
+            for match in matches:
+                body += '%s\n' % (match[0])
+                count += 1
+                if count >= max:
+                    break
 
         self.send_message(body, sender)
 
