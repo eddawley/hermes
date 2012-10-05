@@ -25,6 +25,7 @@ class Chatroom(object):
                         (r'^(\w+)--', 'decrement'),
                         (r'^(\w+)\+\+', 'increment'),
                         (r'^/roll\s*(\d*)', 'roll'),
+                        (r'^/help', 'help'),
                        )
 
     def __init__(self, name, params):
@@ -250,19 +251,30 @@ class Chatroom(object):
         body = '[%s] %s [woot! now at %s]' % (sender['NICK'], match.group(0), str(self.counts[what])) 
         self.broadcast(body)
 
+    def help(self, sender, body, match):
+        """Lists commands available on this server"""
+        body = 'Commands Available:\n\n'
+        for pattern in type(self).base_command_patterns:
+            body += '%s:\n\t%s\n\n' % (pattern[1], pattern[0])
+
+        for pattern in type(self).command_patterns:
+            body += '%s:\n\t%s\n\n' % (pattern[1], pattern[0])
+
+        self.send_message(body, sender)
+
     def list(self, sender, body, match):
         """Lists the members of this chatroom"""
         body = 'Chat Members:\n\n'
         for member in self.params['MEMBERS']:
-            body += member['NICK'] + '\n'
+            body += '%s\n' % (member['NICK'])
 
-        self.broadcast(body)
+        self.send_message(body, sender)
 
     def roll(self, sender, body, match):
         """Roll the dice!  Outputs a random int from 0 to max"""
         max = match.group(1)
         if not max:
             max = 100
-        body = '[%s] rolled %d ' % (sender['NICK'], random.randrange(0, int(max)))
+        body = '[%s] rolled %d' % (sender['NICK'], random.randrange(0, int(max)))
         self.broadcast(body)
 
